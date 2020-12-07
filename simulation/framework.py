@@ -25,11 +25,11 @@ class State:
 
     def __init__(
         self,
-        initial_state: "State" = None,
+        values: Optional[dict] = None,
         active_events: List["Action"] = None,
         completed_events: List["Action"] = None,
     ):
-        self.values = initial_state.values if initial_state else {}
+        self.values = values or {}
         self.active_events = active_events or []
         self.completed_events = completed_events or []
 
@@ -113,8 +113,10 @@ class Timeline:
     events: OrderedDictType[Time, Event] = None
     actions: OrderedDictType[Time, Action] = None
 
-    def __init__(self):
-        initial_state = State(active_events=[], completed_events=[])
+    def __init__(self, initial_values: Optional[dict] = None):
+        initial_state = State(
+            active_events=[], completed_events=[], values=initial_values
+        )
         self.states = OrderedDict({0: initial_state})
         self.events = OrderedDict()
         self.actions = OrderedDict()
@@ -181,17 +183,21 @@ class DiscreteSimulation:
     timeline: Timeline = None
     max_duration: Time = None
 
-    def __init__(self, max_duration: Time, available_actions: List[Action]):
+    def __init__(
+        self,
+        max_duration: Time,
+        available_actions: List[Action],
+        initial_values: Optional[dict] = None,
+    ):
         self.max_duration = max_duration
         self.available_actions = available_actions
+        self.reset(initial_values)
 
-    def reset(self, available_events):
+    def reset(self, initial_values: Optional[dict] = None):
         logger.debug("Prepping simulation to run")
-        self.timeline = Timeline()
-        self.available_actions = available_events
+        self.timeline = Timeline(initial_values=initial_values)
 
     def run(self) -> State:
-        self.reset(self.available_actions)
         logger.info("Starting simulation with duration {}".format(self.max_duration))
         while self.timeline.current_time < self.max_duration:
             # Schedule actions until no more available

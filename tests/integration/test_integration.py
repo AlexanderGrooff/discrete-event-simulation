@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from simulation.framework import Action, DiscreteSimulation, Timeline, Event
+from simulation.framework import Action, DiscreteSimulation, Timeline, Event, State
 from tests.helpers import TestCase
 
 
@@ -69,3 +69,8 @@ class TestSimulationFramework(TestCase):
     def test_values_are_updated_in_state(self):
         self.sim.run()
         self.assertDictEqual(self.sim.timeline.current_state.values, {"water": 2})
+
+    def test_initial_state_is_properly_passed_through_in_sim(self):
+        self.sim.reset(initial_values={"water": 5000})
+        self.sim.run()
+        self.assertDictEqual(self.sim.timeline.current_state.values, {"water": 5002})
