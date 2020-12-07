@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import loguru
 
-from simulation.types import Time, Timedelta
+from simulation.types import Time, Timedelta, Weight
 
 logger = loguru.logger
 
@@ -55,11 +55,13 @@ class Event:
     id = None
     name: str = None
     started: bool = False
+    weight: Weight = 0
 
-    def __init__(self, name: str = None, hook: Callable = None):
+    def __init__(self, name: str = None, hook: Callable = None, weight: Weight = None):
         self.id = str(uuid4())
         self.name = name or self.name or self.id
         self.hook = hook or self.hook
+        self.weight = weight or self.weight or 0
 
     def __repr__(self):
         return "{} - {}".format(self.name, self.id)
@@ -82,17 +84,20 @@ class Action:
     is_active = False
     is_complete = False
     events: List[Tuple[Timedelta, Event]] = None
+    weight: Weight = 0
 
     def __init__(
         self,
         name: str = None,
         duration: float = 0,
         events: List[Tuple[Timedelta, Event]] = None,
+        weight: Weight = None,
     ):
         self.duration = duration
         self.id = str(uuid4())
         self.name = name or self.name or self.id
         self.events = events or self.events or []
+        self.weight = weight or self.weight or 0
 
     def ready_to_start(self, timeline: "Timeline", *args, **kwargs) -> bool:
         return not self.is_active  # TODO
@@ -111,7 +116,7 @@ class Timeline:
 
     states: OrderedDictType[Time, State] = None
     events: OrderedDictType[Time, Event] = None
-    actions: OrderedDictType[Time, Action] = None
+    actions: OrderedDictType[Time, OrderedDictType[Weight, List[Action]]] = None
 
     def __init__(self, initial_values: Optional[dict] = None):
         initial_state = State(
@@ -142,12 +147,23 @@ class Timeline:
             e for t, e in self.events.items() if t > self.current_time
         ]  # TODO: gt or gte?
 
+    # TODO: Make new class for sorted weighted dicts?
+    def _add_action(self, action: Action, time: Time = None):
+        curr_time = self.current_time
+        self.actions[curr_time] = self.actions.get(curr_time, OrderedDict())
+        self.actions[curr_time][action.weight] = self.actions[curr_time].get(
+            action.weight, []
+        )
+        self.actions[curr_time][action.weight].append(action)
+
+        # Sort actions
+        self.actions[curr_time] = OrderedDict(sorted(self.actions[curr_time].items()))
+        self.actions = OrderedDict(sorted(self.actions.items()))
+
     def schedule_action(self, action: Action):
         curr_time = self.current_time
         logger.debug("Scheduling action {} at time {}".format(action, curr_time))
-        self.actions[
-            curr_time
-        ] = action  # TODO: Allow multiple actions on the same time
+        self._add_action(action=action, time=curr_time)
         for td, e in action.events:
             self.schedule_event(event=e, time=curr_time + td)
 

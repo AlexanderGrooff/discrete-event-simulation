@@ -62,7 +62,13 @@ class TestSimulationFramework(TestCase):
         self.sim.run()
         self.assertOrderedDictEqual(
             self.sim.timeline.actions,
-            OrderedDict({0: self.action, 3: self.action, 6: self.action}),
+            OrderedDict(
+                {
+                    0: OrderedDict({0: [self.action]}),
+                    3: OrderedDict({0: [self.action]}),
+                    6: OrderedDict({0: [self.action]}),
+                }
+            ),
         )
 
     def test_values_are_updated_in_state(self):
