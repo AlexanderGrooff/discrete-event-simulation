@@ -177,6 +177,9 @@ class Timeline:
                 last_event = e
         return (last_time, last_event) if last_time != -1 else None
 
+    def action_already_planned(self, action) -> bool:
+        return any([e for e in self.events_to_come if isinstance(e, action.__class__)])
+
 
 class DiscreteSimulation:
     available_actions = None

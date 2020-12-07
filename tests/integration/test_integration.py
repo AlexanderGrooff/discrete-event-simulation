@@ -17,8 +17,7 @@ class WaterDropAction(Action):
     events = [(3, WaterDropEvent())]
 
     def ready_to_start(self, timeline: Timeline, *args, **kwargs) -> bool:
-        # Ready if there are no upcoming water events
-        return not [e for e in timeline.events_to_come if isinstance(e, self.__class__)]
+        return not timeline.action_already_planned(action=self)
 
 
 class TestSimulationFramework(TestCase):
