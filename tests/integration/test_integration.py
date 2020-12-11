@@ -1,6 +1,13 @@
 from collections import OrderedDict
 
-from simulation.framework import Action, DiscreteSimulation, Timeline, Event, State
+from simulation.framework import (
+    Action,
+    DiscreteSimulation,
+    Timeline,
+    Event,
+    State,
+    Timeslot,
+)
 from tests.helpers import TestCase
 
 
@@ -46,9 +53,11 @@ class TestSimulationFramework(TestCase):
             self.sim.timeline.events,
             OrderedDict(
                 {
-                    3: self.event,
-                    6: self.event,
-                    9: self.event,  # Even though it's not started, it is planned
+                    3: Timeslot(items=self.event),
+                    6: Timeslot(items=self.event),
+                    9: Timeslot(
+                        items=self.event
+                    ),  # Even though it's not started, it is planned
                 }
             ),
         )
@@ -64,9 +73,9 @@ class TestSimulationFramework(TestCase):
             self.sim.timeline.actions,
             OrderedDict(
                 {
-                    0: OrderedDict({0: [self.action]}),
-                    3: OrderedDict({0: [self.action]}),
-                    6: OrderedDict({0: [self.action]}),
+                    0: Timeslot(items=self.action),
+                    3: Timeslot(items=self.action),
+                    6: Timeslot(items=self.action),
                 }
             ),
         )

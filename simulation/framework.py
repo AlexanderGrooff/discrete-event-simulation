@@ -1,6 +1,13 @@
 from collections import OrderedDict
 from copy import deepcopy
-from typing import OrderedDict as OrderedDictType, Optional, List, Tuple, Callable
+from typing import (
+    OrderedDict as OrderedDictType,
+    Optional,
+    List,
+    Tuple,
+    Callable,
+    Union,
+)
 from uuid import uuid4
 
 import loguru
@@ -47,7 +54,15 @@ class State:
         return self
 
 
-class Event:
+class BaseSimObject:
+    weight: Weight = 0
+    started: bool = False
+
+    def __init__(self, weight: Weight = None, *args, **kwargs):
+        self.weight = weight or self.weight or 0
+
+
+class Event(BaseSimObject):
     """
     Event is scheduled by an action
     """
@@ -55,13 +70,12 @@ class Event:
     id = None
     name: str = None
     started: bool = False
-    weight: Weight = 0
 
     def __init__(self, name: str = None, hook: Callable = None, weight: Weight = None):
+        super(Event, self).__init__(weight=weight)
         self.id = str(uuid4())
         self.name = name or self.name or self.id
         self.hook = hook or self.hook
-        self.weight = weight or self.weight or 0
 
     def __repr__(self):
         return "{} - {}".format(self.name, self.id)
@@ -74,17 +88,16 @@ class Event:
         return self.id == other.id and self.name == other.name
 
 
-class Action:
+class Action(BaseSimObject):
     """
     Actions at a point in time that trigger a series of events
     """
 
     id = None
     name = None
-    is_active = False
+    started = False
     is_complete = False
     events: List[Tuple[Timedelta, Event]] = None
-    weight: Weight = 0
 
     def __init__(
         self,
@@ -93,6 +106,7 @@ class Action:
         events: List[Tuple[Timedelta, Event]] = None,
         weight: Weight = None,
     ):
+        super(Action, self).__init__(weight=weight)
         self.duration = duration
         self.id = str(uuid4())
         self.name = name or self.name or self.id
@@ -100,7 +114,7 @@ class Action:
         self.weight = weight or self.weight or 0
 
     def ready_to_start(self, timeline: "Timeline", *args, **kwargs) -> bool:
-        return not self.is_active  # TODO
+        return not self.started  # TODO
 
     def __repr__(self):
         return "{} - {}".format(self.name, self.id)
@@ -109,14 +123,63 @@ class Action:
         return self.id == other.id and self.name == other.name
 
 
+class Timeslot:
+    items: OrderedDictType[Weight, List[BaseSimObject]] = None
+
+    def __init__(
+        self, items: Optional[Union[BaseSimObject, List[BaseSimObject]]] = None
+    ):
+        items = items or []
+        if not isinstance(items, list):
+            items = [items]
+        self.items = OrderedDict()
+        for item in items:
+            if self.items.get(item.weight):
+                self.items[item.weight].append(item)
+            else:
+                self.items[item.weight] = [item]
+        self.sort()
+
+    def sort(self) -> "Timeslot":
+        self.items = OrderedDict(
+            sorted(self.items.items(), reverse=True)
+        )  # High weight has prio
+        return self
+
+    def add(self, item: BaseSimObject) -> "Timeslot":
+        self.items[item.weight] = self.items.get(item.weight, [])
+        self.items[item.weight].append(item)
+        self.sort()
+        return self
+
+    def to_list(self) -> List[BaseSimObject]:
+        flat_list = []
+        for i in self.items.values():
+            for j in i:
+                flat_list.append(j)
+        return flat_list
+
+    def upcoming_events(self) -> List[BaseSimObject]:
+        return [i for i in self.to_list() if not i.started]
+
+    def next_event(self) -> Optional[BaseSimObject]:
+        try:
+            return self.upcoming_events()[0]  # TODO: Not as efficient as possible
+        except IndexError:
+            pass
+
+    def __eq__(self, other: "Timeslot") -> bool:
+        return self.to_list() == other.to_list()
+
+
 class Timeline:
     """
     Tracks the state and events over time
     """
 
     states: OrderedDictType[Time, State] = None
-    events: OrderedDictType[Time, Event] = None
-    actions: OrderedDictType[Time, OrderedDictType[Weight, List[Action]]] = None
+    events: OrderedDictType[Time, Timeslot] = None
+    actions: OrderedDictType[Time, Timeslot] = None
 
     def __init__(self, initial_values: Optional[dict] = None):
         initial_state = State(
@@ -143,34 +206,25 @@ class Timeline:
 
     @property
     def events_to_come(self) -> List[Event]:
-        return [
-            e for t, e in self.events.items() if t > self.current_time
-        ]  # TODO: gt or gte?
-
-    # TODO: Make new class for sorted weighted dicts?
-    def _add_action(self, action: Action, time: Time = None):
-        curr_time = self.current_time
-        self.actions[curr_time] = self.actions.get(curr_time, OrderedDict())
-        self.actions[curr_time][action.weight] = self.actions[curr_time].get(
-            action.weight, []
-        )
-        self.actions[curr_time][action.weight].append(action)
-
-        # Sort actions
-        self.actions[curr_time] = OrderedDict(sorted(self.actions[curr_time].items()))
-        self.actions = OrderedDict(sorted(self.actions.items()))
+        upcoming_events = []
+        for t, timeslot in self.events.items():
+            if t >= self.current_time:
+                upcoming_events.extend(timeslot.upcoming_events())
+        return upcoming_events
 
     def schedule_action(self, action: Action):
         curr_time = self.current_time
         logger.debug("Scheduling action {} at time {}".format(action, curr_time))
-        self._add_action(action=action, time=curr_time)
+        self.actions[curr_time] = self.actions.get(curr_time, Timeslot())
+        self.actions[curr_time].add(item=action)
         for td, e in action.events:
             self.schedule_event(event=e, time=curr_time + td)
 
     def schedule_event(self, event: Event, time: Time = None):
         logger.debug("Scheduling event {} at time {}".format(event, time))
         time = time or self.current_time
-        self.events[time] = event  # TODO: Allow multiple actions on the same time
+        self.events[time] = self.events.get(time, Timeslot())
+        self.events[time].add(item=event)
 
     def set_state(self, state: State, time: Time):
         self.states[time] = state
@@ -179,19 +233,16 @@ class Timeline:
         self, time: Time = None
     ) -> Optional[Tuple[Time, Event]]:
         time = time or self.current_time
-        for t, e in self.events.items():
-            if t > time:
+        for t, timeslot in self.events.items():
+            if t >= time and (e := timeslot.next_event()):
                 return t, e
         logger.debug("There are no upcoming events")
 
-    def last_event_occurrence(self, event_type) -> Optional[Tuple[Time, Action]]:
-        last_time = -1
-        last_event = None
-        for t, e in self.events.items():
-            if isinstance(e, event_type):
-                last_time = max(last_time, t)
-                last_event = e
-        return (last_time, last_event) if last_time != -1 else None
+    def last_event_occurrence(self, event_type) -> Optional[Tuple[Time, Event]]:
+        for t, timeslot in sorted(self.events.items(), reverse=True):
+            for e in timeslot.to_list():
+                if isinstance(e, event_type):
+                    return t, e
 
     def action_already_planned(self, action) -> bool:
         return any([e for e in self.events_to_come if isinstance(e, action.__class__)])
@@ -233,7 +284,7 @@ class DiscreteSimulation:
                 )
                 break
             new_time = event_occurrence[0]
-            event = deepcopy(event_occurrence[1])
+            event = event_occurrence[1]
             if new_time > self.max_duration:
                 logger.info(
                     "Next event {} starts after max duration. Stopping simulation".format(

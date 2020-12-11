@@ -1,28 +1,30 @@
-from collections import OrderedDict
+from random import randint
 
-from simulation.framework import Timeline, Action
+from simulation.framework import Timeline, Event
 from tests.helpers import TestCase
 
 
 class TestTimeline(TestCase):
-    def test_multiple_actions_can_be_scheduled_on_the_same_time_with_same_weight(self):
-        a1 = Action()
-        a2 = Action()
+    def test_last_event_can_be_retrieved(self):
+        es = [
+            Event(hook=lambda *args, **kwargs: 123, weight=randint(0, 5))
+            for _ in range(100)
+        ]
         tl = Timeline()
-        tl.schedule_action(a1)
-        tl.schedule_action(a2)
+        for i, e in enumerate(es):
+            tl.schedule_event(event=e, time=i)
+        t, last_event = tl.last_event_occurrence(Event)
+        self.assertEqual(last_event, es[-1])
+        self.assertEqual(t, 99)
 
-        self.assertOrderedDictEqual(
-            tl.actions, OrderedDict({0: OrderedDict({0: [a1, a2]})})
-        )
-
-    def test_multiple_actions_can_be_scheduled_on_the_same_time_with_different_weight(self):
-        a1 = Action(weight=0)
-        a2 = Action(weight=1)
+    def test_next_event_occurrence_can_be_retrieved(self):
+        es = [
+            Event(hook=lambda *args, **kwargs: 123, weight=randint(0, 5))
+            for _ in range(100)
+        ]
         tl = Timeline()
-        tl.schedule_action(a1)
-        tl.schedule_action(a2)
-
-        self.assertOrderedDictEqual(
-            tl.actions, OrderedDict({0: OrderedDict({0: [a1, a2]})})
-        )
+        for i, e in enumerate(es):
+            tl.schedule_event(event=e, time=i)
+        t, next_event = tl.get_first_upcoming_event()
+        self.assertEqual(next_event, es[0])
+        self.assertEqual(t, 0)
