@@ -307,7 +307,11 @@ class DiscreteSimulation:
 
             # Apply new state
             self.timeline.set_state(state=new_state, time=new_time)
-            logger.info("Time: {}   -   State: {}".format(self.timeline.current_time, new_state.values))
+            logger.info(
+                "Time: {}   -   State: {}".format(
+                    self.timeline.current_time, new_state.values
+                )
+            )
 
         return self.timeline.current_state
 
