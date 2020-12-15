@@ -212,6 +212,14 @@ class Timeline:
                 upcoming_events.extend(timeslot.upcoming_events())
         return upcoming_events
 
+    @property
+    def actions_to_come(self) -> List[Action]:
+        upcoming_actions = []
+        for t, timeslot in self.actions.items():
+            if t >= self.current_time:
+                upcoming_actions.extend(timeslot.upcoming_events())
+        return upcoming_actions
+
     def schedule_action(self, action: Action):
         curr_time = self.current_time
         logger.debug("Scheduling action {} at time {}".format(action, curr_time))
@@ -225,6 +233,8 @@ class Timeline:
         time = time or self.current_time
         self.events[time] = self.events.get(time, Timeslot())
         self.events[time].add(item=event)
+        # Sort by time
+        self.events = OrderedDict(sorted(self.events.items()))
 
     def set_state(self, state: State, time: Time):
         self.states[time] = state
@@ -245,7 +255,7 @@ class Timeline:
                     return t, e
 
     def action_already_planned(self, action) -> bool:
-        return any([e for e in self.events_to_come if isinstance(e, action.__class__)])
+        return any([e for e in self.actions_to_come if isinstance(e, action.__class__)])
 
 
 class DiscreteSimulation:
@@ -297,6 +307,7 @@ class DiscreteSimulation:
 
             # Apply new state
             self.timeline.set_state(state=new_state, time=new_time)
+            logger.info("Time: {}   -   State: {}".format(self.timeline.current_time, new_state.values))
 
         return self.timeline.current_state
 
