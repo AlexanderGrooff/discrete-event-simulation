@@ -319,7 +319,9 @@ class DiscreteSimulation:
         return deepcopy(
             [
                 aa
-                for aa in self.available_actions
+                for aa in sorted(
+                    self.available_actions, reverse=True, key=lambda a: a.weight
+                )
                 if aa.ready_to_start(timeline=self.timeline)
             ]
         )

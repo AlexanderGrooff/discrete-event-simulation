@@ -80,6 +80,24 @@ class TestSimulationFramework(TestCase):
             ),
         )
 
+    def test_actions_are_added_to_timeline_sorted_by_descending_weight(self):
+        e1 = WaterDropEvent(name="event for low weight action")
+        a1 = Action(weight=0, events=[(3, e1)], name="low weight action")
+        e2 = WaterDropEvent(name="event for high weight action")
+        a2 = Action(weight=100, events=[(3, e2)], name="high weight action")
+        self.sim.available_actions = [a1, a2]
+        self.sim.run()
+        self.assertOrderedDictEqual(
+            self.sim.timeline.events,
+            OrderedDict(
+                {
+                    3: Timeslot(items=[e2, e1]),
+                    6: Timeslot(items=[e2, e1, e2, e1]),
+                    9: Timeslot(items=[e2, e1, e2, e1, e2, e1, e2, e1]),
+                }
+            ),
+        )
+
     def test_values_are_updated_in_state(self):
         self.sim.run()
         self.assertDictEqual(self.sim.timeline.current_state.values, {"water": 2})
