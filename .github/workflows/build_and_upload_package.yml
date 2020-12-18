@@ -1,0 +1,17 @@
+name: Build and upload package
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install buildtools
+        run: python -m pip install --user --upgrade -r requirements/build.txt
+      - name: Build a binary wheel and a source tarball
+        run: python setup.py sdist bdist_wheel
+      - name: Upload to pypi
+        run: python3 -m twine upload --repository testpypi dist/* --non-interactive
+        with:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
