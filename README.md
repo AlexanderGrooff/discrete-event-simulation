@@ -1,3 +1,4 @@
+[![PyPI version](https://badge.fury.io/py/discrete-event-simulation.svg)](https://badge.fury.io/py/discrete-event-simulation)
 # Discrete event simulation
 
 This package can be used to create a discrete event simulation based on your parameters. Just install the library (pypi library is WIP) and use
