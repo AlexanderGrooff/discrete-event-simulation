@@ -5,7 +5,7 @@ with open("README.md", "r") as fp:
 
 setup(
     name="discrete-event-simulation",
-    version="0.1.0",
+    version="0.1.1",
     description="Framework for making discrete event simulations",
     long_description=long_description,
     author="Alexander Grooff",
