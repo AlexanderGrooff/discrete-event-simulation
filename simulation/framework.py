@@ -55,11 +55,25 @@ class State:
 
 
 class BaseSimObject:
+    id = None
+    name: str = None
     weight: Weight = 0
     started: bool = False
 
-    def __init__(self, weight: Weight = None, *args, **kwargs):
+    def __init__(self, name: str = None, weight: Weight = None, *args, **kwargs):
         self.weight = weight or self.weight or 0
+        self.id = str(uuid4())
+        self.name = name or self.name or self.__class__.__name__
+
+    def __repr__(self):
+        return "{} - {}".format(self.name, self.id)
+
+    def __eq__(self, other: "BaseSimObject"):
+        return (
+            type(self) == type(other)
+            and self.id == other.id
+            and self.name == other.name
+        )
 
 
 class Event(BaseSimObject):
@@ -67,25 +81,15 @@ class Event(BaseSimObject):
     Event is scheduled by an action
     """
 
-    id = None
-    name: str = None
     started: bool = False
 
     def __init__(self, name: str = None, hook: Callable = None, weight: Weight = None):
-        super(Event, self).__init__(weight=weight)
-        self.id = str(uuid4())
-        self.name = name or self.name or self.id
+        super(Event, self).__init__(name=name, weight=weight)
         self.hook = hook or self.hook
-
-    def __repr__(self):
-        return "{} - {}".format(self.name, self.id)
 
     def __call__(self, state: State, *args, **kwargs) -> State:
         self.started = True
         return self.hook(state=state, *args, **kwargs)
-
-    def __eq__(self, other: "Event"):
-        return self.id == other.id and self.name == other.name
 
 
 class Action(BaseSimObject):
@@ -93,8 +97,6 @@ class Action(BaseSimObject):
     Actions at a point in time that trigger a series of events
     """
 
-    id = None
-    name = None
     started = False
     is_complete = False
     events: List[Tuple[Timedelta, Event]] = None
@@ -106,21 +108,12 @@ class Action(BaseSimObject):
         events: List[Tuple[Timedelta, Event]] = None,
         weight: Weight = None,
     ):
-        super(Action, self).__init__(weight=weight)
+        super(Action, self).__init__(name=name, weight=weight)
         self.duration = duration
-        self.id = str(uuid4())
-        self.name = name or self.name or self.id
         self.events = events or self.events or []
-        self.weight = weight or self.weight or 0
 
     def ready_to_start(self, timeline: "Timeline", *args, **kwargs) -> bool:
         return not self.started  # TODO
-
-    def __repr__(self):
-        return "{} - {}".format(self.name, self.id)
-
-    def __eq__(self, other: "Action"):
-        return self.id == other.id and self.name == other.name
 
 
 class Timeslot:
