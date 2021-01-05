@@ -106,3 +106,9 @@ class TestSimulationFramework(TestCase):
         self.sim.reset(initial_values={"water": 5000})
         self.sim.run()
         self.assertDictEqual(self.sim.timeline.current_state.values, {"water": 5002})
+
+    def test_state_changes_over_time(self):
+        self.sim.run()
+        first_state = self.sim.timeline.states[0]
+        second_state = self.sim.timeline.states[3]
+        self.assertNotEqual(first_state.values, second_state.values)

@@ -296,7 +296,7 @@ class DiscreteSimulation:
                 )
                 break
             logger.debug("Executing event {} at time {}".format(event, new_time))
-            new_state = event(state=self.timeline.current_state)
+            new_state = deepcopy(event(state=self.timeline.current_state))
 
             # Apply new state
             self.timeline.set_state(state=new_state, time=new_time)
